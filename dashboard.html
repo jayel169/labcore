@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | LabCore</title>
+<link rel="stylesheet" href="shared/labcore-nav.css">
+<style>
+:root {
+  --lc-sidebar: #202522; --lc-gold: #d5b36a; --lc-blue: #245b86;
+  --lc-bg: #f4f5f3; --lc-border: #dedfdd; --lc-text: #252525;
+  --lc-muted: #7a7f7b; --lc-green: #2d7a46; --lc-red: #b74b43;
+  --lc-warning: #b08a2e; --lc-radius: 8px; --lc-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--lc-bg); color: var(--lc-text); }
+.main { margin-left: 245px; min-height: 100vh; padding: 24px 28px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.topbar h1 { font-size: 22px; }
+.topbar p { font-size: 13px; color: var(--lc-muted); margin-top: 4px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.user-chip {
+  background: #fff; border: 1px solid var(--lc-border); border-radius: 20px;
+  padding: 6px 14px; font-size: 12px; font-weight: 600;
+}
+.crit-bell {
+  position: relative; background: #fff; border: 1px solid var(--lc-border);
+  border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 16px;
+}
+.crit-bell .badge {
+  position: absolute; top: -4px; right: -4px; background: var(--lc-red);
+  color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px;
+  border-radius: 9px; display: flex; align-items: center; justify-content: center;
+}
+.crit-panel {
+  display: none; position: absolute; right: 28px; top: 70px; width: 380px;
+  max-width: 94vw; background: #fff; border: 1px solid var(--lc-border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 200;
+  max-height: 420px; overflow: auto;
+}
+.crit-panel.open { display: block; }
+.crit-panel .head {
+  padding: 12px 16px; border-bottom: 1px solid var(--lc-border);
+  font-weight: 700; font-size: 13px; display: flex; justify-content: space-between;
+}
+.crit-item { padding: 12px 16px; border-bottom: 1px solid #f0f0ee; font-size: 12px; }
+.crit-item:hover { background: #fafbfa; }
+.crit-item .flag { font-weight: 800; color: var(--lc-red); }
+.crit-item button {
+  margin-top: 6px; padding: 4px 10px; font-size: 11px; border-radius: 4px;
+  border: 1px solid var(--lc-border); background: #fff; cursor: pointer;
+}
+.crit-item button.ack { background: var(--lc-green); color: #fff; border-color: var(--lc-green); }
+
+.stats {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px;
+}
+.stat-card {
+  background: #fff; border: 1px solid var(--lc-border); border-radius: 10px;
+  padding: 18px; transition: 0.2s;
+}
+.stat-card:hover { box-shadow: var(--lc-shadow); transform: translateY(-2px); }
+.stat-card .label { font-size: 11px; color: var(--lc-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.stat-card .number { font-size: 28px; font-weight: 700; margin-top: 6px; }
+.stat-card .sub { font-size: 11px; color: var(--lc-muted); margin-top: 4px; }
+.stat-card.awaiting .number { color: var(--lc-warning); }
+.stat-card.pending .number { color: var(--lc-blue); }
+.stat-card.critical .number { color: var(--lc-red); }
+.stat-card.done .number { color: var(--lc-green); }
+
+.tat-widget {
+  background: #fff;
+  border: 1px solid var(--lc-border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.tat-widget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tat-widget-head h2 { font-size: 14px; }
+.tat-widget-head .links { display: flex; gap: 10px; font-size: 12px; }
+.tat-widget-head .links a { color: var(--lc-blue); text-decoration: none; }
+.tat-widget-head .links a:hover { text-decoration: underline; }
+.tat-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.tat-metric {
+  background: #f8fafc;
+  border: 1px solid var(--lc-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.tat-metric .t-label { font-size: 10px; color: var(--lc-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.tat-metric .t-value { font-size: 20px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.tat-metric .t-value.ok { color: var(--lc-green); }
+.tat-metric .t-value.warn { color: var(--lc-warning); }
+.tat-metric .t-value.crit { color: var(--lc-red); }
+.tat-bars { display: flex; flex-direction: column; gap: 6px; }
+.tat-bar-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 70px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.tat-bar-row .t-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tat-bar-track {
+  height: 14px;
+  background: #eef2f5;
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+}
+.tat-bar-fill {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.4s ease-out;
+  background: var(--lc-green);
+}
+.tat-bar-fill.warn { background: var(--lc-warning); }
+.tat-bar-fill.crit { background: var(--lc-red); }
+.tat-bar-target {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #252525;
+  opacity: 0.6;
+}
+.tat-bar-row .t-time {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #444;
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card {
+  background: #fff; border: 1px solid var(--lc-border); border-radius: 10px; overflow: hidden;
+}
+.card-head {
+  padding: 14px 18px; border-bottom: 1px solid var(--lc-border);
+  font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center;
+}
+.card-body { padding: 8px 0; max-height: 360px; overflow-y: auto; }
+.list-row {
+  padding: 10px 18px; border-bottom: 1px solid #f0f0ee; font-size: 13px;
+  display: flex; justify-content: space-between; gap: 12px; align-items: center;
+}
+.list-row:hover { background: #fafbfa; }
+.list-row .meta { font-size: 11px; color: var(--lc-muted); margin-top: 2px; }
+.list-row a { color: var(--lc-blue); text-decoration: none; font-weight: 600; font-size: 12px; }
+.empty { padding: 30px; text-align: center; color: var(--lc-muted); font-size: 13px; }
+.quick-links {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px;
+}
+.quick-link {
+  background: #fff; border: 1px solid var(--lc-border); border-radius: 8px;
+  padding: 16px; text-align: center; text-decoration: none; color: var(--lc-text);
+  transition: 0.2s; font-size: 13px; font-weight: 600;
+}
+.quick-link:hover { border-color: var(--lc-blue); background: #eef7fd; }
+.quick-link .icon { font-size: 22px; display: block; margin-bottom: 6px; }
+
+@media (max-width: 1100px) {
+  .stats { grid-template-columns: repeat(3, 1fr); }
+  .tat-metrics { grid-template-columns: repeat(2, 1fr); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  .main { margin-left: 0; padding-top: 70px; }
+}
+@media (max-width: 600px) {
+  .stats { grid-template-columns: 1fr 1fr; }
+  .tat-metrics { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: 1fr; }
+  .tat-bar-row { grid-template-columns: 100px 1fr 55px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<aside class="sidebar"></aside>
+<button class="lc-mobile-toggle" aria-label="Menu">☰</button>
+<div class="lc-sidebar-overlay"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>Dashboard</h1>
+      <p id="welcomeLine">Today's laboratory workload</p>
+    </div>
+    <div class="topbar-right">
+      <div class="crit-bell" id="critBell" onclick="toggleCritPanel()" title="Critical alerts">
+        🔔
+        <span class="badge" id="critBadge" style="display:none">0</span>
+      </div>
+      <div class="user-chip" id="userChip">—</div>
+      <button class="lc-btn lc-btn-sm" onclick="lcLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="crit-panel" id="critPanel">
+    <div class="head">
+      <span>Critical results</span>
+      <span id="critCountLabel" style="font-weight:400;color:#7a7f7b">0</span>
+    </div>
+    <div id="critList"><div class="empty">No unacknowledged criticals</div></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card awaiting">
+      <div class="label">Awaiting specimen</div>
+      <div class="number" id="statAwaiting">0</div>
+      <div class="sub">Orders waiting for sample</div>
+    </div>
+    <div class="stat-card pending">
+      <div class="label">Pending validation</div>
+      <div class="number" id="statPending">0</div>
+      <div class="sub">Preliminary / awaiting sign-off</div>
+    </div>
+    <div class="stat-card critical">
+      <div class="label">Critical (unacked)</div>
+      <div class="number" id="statCritical">0</div>
+      <div class="sub">Need clinical attention</div>
+    </div>
+    <div class="stat-card done">
+      <div class="label">Validated today</div>
+      <div class="number" id="statDone">0</div>
+      <div class="sub">Completed reports</div>
+    </div>
+    <div class="stat-card" style="border-left:3px solid #245b86">
+      <div class="label">Avg TAT (today)</div>
+      <div class="number" id="statTAT" style="color:#245b86">—</div>
+      <div class="sub">Order → validated</div>
+    </div>
+  </div>
+
+  <div class="tat-widget">
+    <div class="tat-widget-head">
+      <h2>⏱️ Turn-Around Time — last 7 days</h2>
+      <div class="links">
+        <a href="reports.html">Full TAT report →</a>
+      </div>
+    </div>
+    <div class="tat-metrics">
+      <div class="tat-metric">
+        <div class="t-label">Median TAT</div>
+        <div class="t-value" id="tatMetricMedian">—</div>
+      </div>
+      <div class="tat-metric">
+        <div class="t-label">90th percentile</div>
+        <div class="t-value" id="tatMetricP90">—</div>
+      </div>
+      <div class="tat-metric">
+        <div class="t-label">STAT median</div>
+        <div class="t-value" id="tatMetricStat">—</div>
+      </div>
+      <div class="tat-metric">
+        <div class="t-label">% within 24h</div>
+        <div class="t-value" id="tatMetricWithin">—</div>
+      </div>
+    </div>
+    <div class="tat-bars" id="tatBars">
+      <div class="empty" style="padding:12px;font-size:12px">Loading TAT breakdown…</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <span>Awaiting specimen</span>
+        <a href="lab-reception.html" style="font-size:12px;color:var(--lc-blue)">Open reception →</a>
+      </div>
+      <div class="card-body" id="listAwaiting"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span>Pending validation</span>
+        <a href="result-entry.html" style="font-size:12px;color:var(--lc-blue)">Open results →</a>
+      </div>
+      <div class="card-body" id="listPending"></div>
+    </div>
+  </div>
+
+  <div class="quick-links" id="quickLinks"></div>
+</div>
+
+<script src="shared/labcore-utils.js"></script>
+<script src="shared/labcore-ward.js"></script>
+<script src="shared/labcore-audit.js"></script>
+<script src="shared/labcore-auth.js"></script>
+<script src="shared/labcore-nav.js"></script>
+<script src="shared/labcore-search.js"></script>
+<script src="shared/labcore-notifications.js"></script>
+<script src="shared/labcore-print-preview.js"></script>
+<script src="shared/labcore-timeline.js"></script>
+<script>
+const user = window.lcRequireAuth();
+if (user) {
+  document.getElementById('userChip').textContent = user.name + ' · ' + user.label;
+  document.getElementById('welcomeLine').textContent =
+    'Welcome, ' + user.name + ' · ' + new Date().toLocaleDateString('en-GH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function isToday(iso) {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return false;
+  const t = new Date();
+  return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* =========================================================
+   TAT METRICS (7-day rolling window)
+   ========================================================= */
+
+function computeTATMetrics() {
+  var patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+  var sevenAgo = Date.now() - 7 * 24 * 3600 * 1000;
+  var perTest = {};       // { test: { hours:[], priority } }
+  var statHours = [];
+  var allHours = [];
+
+  patients.forEach(function (p) {
+    (p.encounters || []).forEach(function (enc) {
+      (enc.orders || []).forEach(function (o) {
+        if (o.type !== 'Laboratory') return;
+        if (!o.validatedAt) return;
+        if (new Date(o.validatedAt).getTime() < sevenAgo) return;
+
+        var start = o.orderedAt || o.specimenReceivedDate || enc.createdAt || enc.date;
+        if (!start) return;
+        var t0 = new Date(start).getTime();
+        var t1 = new Date(o.validatedAt).getTime();
+        if (isNaN(t0) || isNaN(t1) || t1 < t0) return;
+        var h = (t1 - t0) / 3600000;
+        allHours.push(h);
+
+        var priority = o.priority || 'Routine';
+        if (priority === 'STAT') statHours.push(h);
+
+        var key = o.item;
+        if (!perTest[key]) perTest[key] = { hours: [], priority: priority };
+        perTest[key].hours.push(h);
+      });
+    });
+  });
+
+  function median(arr) {
+    if (!arr.length) return null;
+    var a = arr.slice().sort(function (x, y) { return x - y; });
+    var mid = Math.floor(a.length / 2);
+    return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+  }
+  function pct(arr, p) {
+    if (!arr.length) return null;
+    var a = arr.slice().sort(function (x, y) { return x - y; });
+    var idx = Math.min(a.length - 1, Math.floor(a.length * p / 100));
+    return a[idx];
+  }
+
+  var perTestList = Object.keys(perTest).map(function (test) {
+    return {
+      test: test,
+      priority: perTest[test].priority,
+      count: perTest[test].hours.length,
+      median: median(perTest[test].hours)
+    };
+  }).sort(function (a, b) { return b.count - a.count; }).slice(0, 8);
+
+  return {
+    count: allHours.length,
+    median: median(allHours),
+    p90: pct(allHours, 90),
+    statMedian: median(statHours),
+    within24Pct: allHours.length
+      ? Math.round(allHours.filter(function (h) { return h <= 24; }).length * 100 / allHours.length)
+      : null,
+    perTest: perTestList
+  };
+}
+
+function fmtHours(h) {
+  if (h == null || isNaN(h)) return '—';
+  if (h < 1) return Math.round(h * 60) + ' min';
+  if (h < 24) return h.toFixed(1) + ' h';
+  return (h / 24).toFixed(1) + ' d';
+}
+
+function colourForTAT(h) {
+  if (h == null) return '';
+  if (h <= 8) return 'ok';
+  if (h <= 24) return 'warn';
+  return 'crit';
+}
+
+function renderTATWidget() {
+  var m = computeTATMetrics();
+
+  var medianEl = document.getElementById('tatMetricMedian');
+  medianEl.textContent = fmtHours(m.median);
+  medianEl.className = 't-value ' + colourForTAT(m.median);
+
+  var p90El = document.getElementById('tatMetricP90');
+  p90El.textContent = fmtHours(m.p90);
+  p90El.className = 't-value ' + colourForTAT(m.p90);
+
+  var statEl = document.getElementById('tatMetricStat');
+  statEl.textContent = fmtHours(m.statMedian);
+  statEl.className = 't-value ' + colourForTAT(m.statMedian);
+
+  var withinEl = document.getElementById('tatMetricWithin');
+  withinEl.textContent = m.within24Pct != null ? m.within24Pct + '%' : '—';
+  withinEl.className = 't-value ' + (m.within24Pct == null ? '' : (m.within24Pct >= 90 ? 'ok' : m.within24Pct >= 75 ? 'warn' : 'crit'));
+
+  var bars = document.getElementById('tatBars');
+  if (!m.perTest.length) {
+    bars.innerHTML = '<div class="empty" style="padding:12px;font-size:12px">No validated results in the last 7 days.</div>';
+    return;
+  }
+
+  // Scale bars against the max median (or 24h minimum, whichever greater)
+  var maxMedian = Math.max.apply(null, m.perTest.map(function (t) { return t.median || 0; }).concat([24]));
+  var targetH = 24; // 24h target line
+
+  bars.innerHTML = m.perTest.map(function (t) {
+    var pct = t.median != null ? Math.min(100, (t.median / maxMedian) * 100) : 0;
+    var targetPct = Math.min(100, (targetH / maxMedian) * 100);
+    var cls = colourForTAT(t.median);
+    return '<div class="tat-bar-row">' +
+      '<div class="t-name" title="' + esc(t.test) + '">' + esc(t.test) + ' <span style="color:#7a8791;font-weight:400">(' + t.count + ')</span></div>' +
+      '<div class="tat-bar-track">' +
+        '<div class="tat-bar-fill ' + cls + '" style="width:' + pct + '%"></div>' +
+        '<div class="tat-bar-target" style="left:' + targetPct + '%" title="24h target"></div>' +
+      '</div>' +
+      '<div class="t-time">' + fmtHours(t.median) + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+/* =========================================================
+   MAIN DASHBOARD LOAD
+   ========================================================= */
+
+function loadDashboard() {
+  const patients = JSON.parse(localStorage.getItem('hms_patients_v3') || '[]');
+  let awaiting = [];
+  let pending = [];
+  let validatedToday = 0;
+
+  patients.forEach(p => {
+    (p.encounters || []).forEach(enc => {
+      (enc.orders || []).forEach(o => {
+        if (o.type !== 'Laboratory') return;
+        const st = (o.resultStatus || o.status || '').toLowerCase();
+        if (st === 'awaiting specimen' || st === 'pending' || (!o.specimenId && st.indexOf('received') === -1 && st.indexOf('valid') === -1 && st.indexOf('prelim') === -1)) {
+          if (!o.specimenId || st === 'awaiting specimen' || st === 'pending') {
+            awaiting.push({ patient: p.fullName, patientId: p.id, visitId: enc.visitId, panel: o.item, doctor: enc.consultant || '—' });
+          }
+        }
+        if (st.indexOf('prelim') >= 0 || st.indexOf('validation') >= 0 || st === 'preliminary' || st === 'awaiting validation') {
+          pending.push({ patient: p.fullName, patientId: p.id, visitId: enc.visitId, panel: o.item, status: o.resultStatus || o.status });
+        }
+        if ((st === 'validated' || st === 'completed') && isToday(o.validatedAt)) {
+          validatedToday++;
+        }
+      });
+    });
+  });
+
+  const crits = window.lcGetCriticalAlerts();
+
+  var tatHours = [];
+  patients.forEach(function (p) {
+    (p.encounters || []).forEach(function (enc) {
+      (enc.orders || []).forEach(function (o) {
+        if (o.type !== 'Laboratory') return;
+        var st = (o.resultStatus || o.status || '').toLowerCase();
+        if (!(st === 'validated' || st === 'completed')) return;
+        if (!o.validatedAt || !isToday(o.validatedAt)) return;
+        var start = o.orderedAt || o.specimenReceivedDate || enc.createdAt || enc.date;
+        if (!start) return;
+        var t0 = new Date(start).getTime();
+        var t1 = new Date(o.validatedAt).getTime();
+        if (isNaN(t0) || isNaN(t1) || t1 < t0) return;
+        tatHours.push((t1 - t0) / 3600000);
+      });
+    });
+  });
+  var avgTat = tatHours.length
+    ? (tatHours.reduce(function (a, b) { return a + b; }, 0) / tatHours.length)
+    : null;
+  var tatEl = document.getElementById('statTAT');
+  if (tatEl) tatEl.textContent = fmtHours(avgTat);
+
+  document.getElementById('statAwaiting').textContent = awaiting.length;
+  document.getElementById('statPending').textContent = pending.length;
+  document.getElementById('statCritical').textContent = crits.length;
+  document.getElementById('statDone').textContent = validatedToday;
+
+  const la = document.getElementById('listAwaiting');
+  if (!awaiting.length) la.innerHTML = '<div class="empty">No orders awaiting specimen</div>';
+  else la.innerHTML = awaiting.slice(0, 15).map(r =>
+    '<div class="list-row"><div><strong>' + esc(r.patient) + '</strong><div class="meta">' + esc(r.panel) + ' · ' + esc(r.visitId) + '</div></div>' +
+    '<a href="lab-reception.html">Register</a></div>'
+  ).join('');
+
+  const lp = document.getElementById('listPending');
+  if (!pending.length) lp.innerHTML = '<div class="empty">Nothing pending validation</div>';
+  else lp.innerHTML = pending.slice(0, 15).map(r =>
+    '<div class="list-row"><div><strong>' + esc(r.patient) + '</strong><div class="meta">' + esc(r.panel) + ' · ' + esc(r.status) + '</div></div>' +
+    '<a href="result-entry.html">Open</a></div>'
+  ).join('');
+
+  renderCrits(crits);
+  renderQuickLinks();
+  renderTATWidget();
+}
+
+function renderCrits(crits) {
+  const badge = document.getElementById('critBadge');
+  const label = document.getElementById('critCountLabel');
+  const list = document.getElementById('critList');
+  if (crits.length) {
+    badge.style.display = 'flex';
+    badge.textContent = crits.length > 99 ? '99+' : String(crits.length);
+  } else {
+    badge.style.display = 'none';
+  }
+  label.textContent = crits.length + ' unacknowledged';
+  if (!crits.length) {
+    list.innerHTML = '<div class="empty">No unacknowledged criticals</div>';
+    return;
+  }
+  list.innerHTML = crits.map(function (c, i) {
+    return '<div class="crit-item">' +
+      '<div><strong>' + esc(c.patientName) + '</strong> · ' + esc(c.panel) + '</div>' +
+      '<div style="margin-top:4px">' + esc(c.param) + ' = <strong>' + esc(c.value) + '</strong> ' + esc(c.unit) +
+      ' <span class="flag">' + esc(c.flag) + '</span></div>' +
+      '<div style="font-size:10px;color:#7a7f7b;margin-top:2px">' + esc(c.visitId) + (c.specimenId ? ' · ' + esc(c.specimenId) : '') + '</div>' +
+      '<button class="ack" onclick="ackCrit(' + i + ')">Acknowledge</button>' +
+      '</div>';
+  }).join('');
+  window._critCache = crits;
+}
+
+function ackCrit(i) {
+  const c = (window._critCache || [])[i];
+  if (!c) return;
+  if (window.lcAckCritical(c.patientId, c.visitId, c.panel, c.param)) {
+    if (window.auditLog) {
+      auditLog('critical.acked', {
+        entity: 'order',
+        entityId: c.panel + '@' + c.visitId,
+        patientId: c.patientId,
+        visitId: c.visitId,
+        note: c.param + ' = ' + c.value + ' (' + c.flag + ') — from dashboard'
+      });
+    }
+    if (window.lcToast) window.lcToast('Critical acknowledged: ' + c.param, 'success');
+    loadDashboard();
+  }
+}
+
+function toggleCritPanel() {
+  document.getElementById('critPanel').classList.toggle('open');
+}
+
+document.addEventListener('click', function (e) {
+  const panel = document.getElementById('critPanel');
+  const bell = document.getElementById('critBell');
+  if (!panel.contains(e.target) && !bell.contains(e.target)) {
+    panel.classList.remove('open');
+  }
+});
+
+function renderQuickLinks() {
+  const u = window.lcGetUser();
+  const all = [
+    { href: 'patient-registration.html', icon: '♙', label: 'Patients', roles: null },
+    { href: 'consultation.html', icon: '👨‍⚕️', label: 'Consultation', roles: ['doctor', 'admin'] },
+    { href: 'lab-reception.html', icon: '▤', label: 'Sample Registration', roles: ['scientist', 'receptionist', 'admin'] },
+    { href: 'result-entry.html', icon: '✓', label: 'Result Entry', roles: ['scientist', 'doctor', 'admin'] },
+    { href: 'reports.html', icon: '📊', label: 'Reports & Audit', roles: ['scientist', 'doctor', 'admin'] },
+    { href: 'test-configuration.html', icon: '⚙', label: 'Test Panels', roles: ['scientist', 'admin'] }
+  ];
+  const box = document.getElementById('quickLinks');
+  box.innerHTML = all.filter(function (l) {
+    if (!l.roles) return true;
+    return u && l.roles.indexOf(u.id) >= 0;
+  }).map(function (l) {
+    return '<a class="quick-link" href="' + l.href + '"><span class="icon">' + l.icon + '</span>' + l.label + '</a>';
+  }).join('');
+}
+
+loadDashboard();
+setInterval(loadDashboard, 30000);
+</script>
+</body>
+</html>
